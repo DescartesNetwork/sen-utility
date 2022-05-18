@@ -16,13 +16,14 @@ declare_id!("7oyG4wSf2kz2CxTqKTf1uhpPqrw9a8Av1w5t8Uj5PfXb");
 pub mod sen_utility {
   use super::*;
 
-  pub fn add_merkle_root(
+  pub fn initialize_distributor(
     ctx: Context<InitializeDistributor>,
     merkle_root: [u8; 32],
     total: u64,
     ended_at: i64,
+    metadata: [u8; 32],
   ) -> Result<()> {
-    merkle_distributor::initialize_distributor(ctx, merkle_root, total, ended_at)
+    merkle_distributor::initialize_distributor(ctx, merkle_root, total, ended_at, metadata)
   }
 
   pub fn claim(

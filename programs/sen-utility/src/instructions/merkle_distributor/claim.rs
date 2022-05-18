@@ -19,7 +19,17 @@ pub struct Claim<'info> {
   pub authority: Signer<'info>,
   #[account(mut, has_one = mint)]
   pub distributor: Account<'info, Distributor>,
-  #[account(init, payer = authority, space = Receipt::LEN)]
+  #[account(
+    init,
+    payer = authority,
+    space = Receipt::LEN,
+    seeds = [
+      b"receipt".as_ref(),
+      &distributor.key().to_bytes(),
+      &authority.key().to_bytes()
+    ],
+    bump
+  )]
   pub receipt: Account<'info, Receipt>,
   #[account(
     init_if_needed,
@@ -37,7 +47,7 @@ pub struct Claim<'info> {
     associated_token::authority = treasurer
   )]
   pub treasury: Box<Account<'info, token::TokenAccount>>,
-  pub mint: Account<'info, token::Mint>,
+  pub mint: Box<Account<'info, token::Mint>>,
   pub token_program: Program<'info, token::Token>,
   pub associated_token_program: Program<'info, associated_token::AssociatedToken>,
   pub system_program: Program<'info, System>,

@@ -9,6 +9,7 @@ pub struct InitializeDistributorEvent {
   pub merkle_root: [u8; 32],
   pub total: u64,
   pub ended_at: i64,
+  pub metadata: [u8; 32],
 }
 
 #[derive(Accounts)]
@@ -23,13 +24,13 @@ pub struct InitializeDistributor<'info> {
   /// CHECK: Just a pure account
   pub treasurer: AccountInfo<'info>,
   #[account(
-    init_if_needed,
+    init,
     payer = authority,
     associated_token::mint = mint,
     associated_token::authority = treasurer
   )]
   pub treasury: Box<Account<'info, token::TokenAccount>>,
-  pub mint: Account<'info, token::Mint>,
+  pub mint: Box<Account<'info, token::Mint>>,
   pub token_program: Program<'info, token::Token>,
   pub associated_token_program: Program<'info, associated_token::AssociatedToken>,
   pub system_program: Program<'info, System>,
@@ -41,6 +42,7 @@ pub fn initialize_distributor(
   merkle_root: [u8; 32],
   total: u64,
   ended_at: i64,
+  metadata: [u8; 32],
 ) -> Result<()> {
   let distributor = &mut ctx.accounts.distributor;
 
@@ -61,13 +63,15 @@ pub fn initialize_distributor(
   distributor.total = total;
   distributor.claimed = 0;
   distributor.ended_at = ended_at;
+  distributor.metadata = metadata;
 
   emit!(InitializeDistributorEvent {
     authority: distributor.authority,
     distributor: ctx.accounts.distributor.key(),
     merkle_root,
     total,
-    ended_at
+    ended_at,
+    metadata
   });
 
   Ok(())

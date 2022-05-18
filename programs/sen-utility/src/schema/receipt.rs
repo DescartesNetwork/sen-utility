@@ -16,7 +16,7 @@ impl Receipt {
     if self.started_at == 0 {
       return true;
     }
-    return self.started_at >= current_time;
+    return self.started_at <= current_time;
   }
 
   pub fn hash(&self) -> [u8; 32] {

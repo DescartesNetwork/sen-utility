@@ -33,7 +33,7 @@ pub struct Revoke<'info> {
     associated_token::authority = treasurer
   )]
   pub treasury: Box<Account<'info, token::TokenAccount>>,
-  pub mint: Account<'info, token::Mint>,
+  pub mint: Box<Account<'info, token::Mint>>,
   pub token_program: Program<'info, token::Token>,
   pub associated_token_program: Program<'info, associated_token::AssociatedToken>,
   pub system_program: Program<'info, System>,

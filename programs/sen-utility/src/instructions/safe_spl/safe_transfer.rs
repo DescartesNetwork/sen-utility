@@ -4,18 +4,20 @@ use anchor_spl::{associated_token, token};
 #[derive(Accounts)]
 pub struct SafeTransfer<'info> {
   #[account(mut)]
-  pub authority: Signer<'info>,
+  pub payer: Signer<'info>,
+  /// CHECK: Just a pure account
+  pub authority: AccountInfo<'info>,
   #[account(
     mut,
     associated_token::mint = mint,
-    associated_token::authority = authority
+    associated_token::authority = payer
   )]
   pub src: Box<Account<'info, token::TokenAccount>>,
   #[account(
     init_if_needed,
-    payer = authority,
+    payer = payer,
     associated_token::mint = mint,
-    associated_token::authority = dst
+    associated_token::authority = authority
   )]
   pub dst: Box<Account<'info, token::TokenAccount>>,
   pub mint: Account<'info, token::Mint>,
@@ -31,7 +33,7 @@ pub fn safe_transfer(ctx: Context<SafeTransfer>, amount: u64) -> Result<()> {
     token::Transfer {
       from: ctx.accounts.src.to_account_info(),
       to: ctx.accounts.dst.to_account_info(),
-      authority: ctx.accounts.authority.to_account_info(),
+      authority: ctx.accounts.payer.to_account_info(),
     },
   );
   token::transfer(transfer_ctx, amount)?;
