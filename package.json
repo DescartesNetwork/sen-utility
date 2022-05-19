@@ -1,6 +1,6 @@
 {
   "name": "@sentre/utility",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "main": "dist/app/index.js",
   "scripts": {
     "start": "nodemon app/index.ts",
@@ -20,6 +20,11 @@
     "url": "https://github.com/DescartesNetwork/sen-utility/issues"
   },
   "homepage": "https://utility.sentre.io",
+  "keywords": [
+    "solana",
+    "sentre",
+    "utility"
+  ],
   "dependencies": {
     "@project-serum/anchor": "^0.24.2",
     "bs58": "^5.0.0",

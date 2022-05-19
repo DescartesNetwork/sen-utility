@@ -1,6 +1,6 @@
 # Sen Utility
 
-🛠 Sentre Utility Program that help to shorten some common Solana procedures.
+🛠 Sentre Utility Program that helps to compact several common Solana procedures.
 
 ## Features
 
