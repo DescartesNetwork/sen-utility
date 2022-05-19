@@ -17,7 +17,7 @@ import {
 } from './types'
 import { findReceipt, isAddress, isHash } from './utils'
 
-class Utility {
+export class Utility {
   private _connection: web3.Connection
   private _provider: AnchorProvider
   readonly program: Program<SenUtility>
@@ -460,5 +460,3 @@ class Utility {
     }
   }
 }
-
-export default Utility

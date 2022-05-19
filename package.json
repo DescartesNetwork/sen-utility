@@ -1,6 +1,6 @@
 {
   "name": "@sentre/utility",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "main": "dist/app/index.js",
   "scripts": {
     "start": "nodemon app/index.ts",

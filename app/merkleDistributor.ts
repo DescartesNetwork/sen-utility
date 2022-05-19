@@ -49,9 +49,9 @@ export class MerkleDistributor {
   }
 
   /**
-   * For utils
+   * Get total distributed tokens
+   * @returns Total
    */
-
   getTotal = (): BN => {
     let total: BN = new BN(0)
     this.receipients.forEach(({ amount }) => (total = total.add(amount)))
@@ -67,13 +67,18 @@ export class MerkleDistributor {
   }
 
   /**
-   * For tree storage
+   * Convert current merkle tree to buffer.
+   * @returns Buffer.
    */
-
   toBuffer = () => {
     return Buffer.concat(this.receipients.map(MerkleDistributor.serialize))
   }
 
+  /**
+   * Build a merkle distributor instance from merkle tree data buffer.
+   * @param buf Merkle tree data buffer.
+   * @returns Merkle distributor instance.
+   */
   static fromBuffer = (buf: Buffer): MerkleDistributor => {
     if (buf.length % LEAF_LEN !== 0) throw new Error('Invalid buffer')
     let re: Leaf[] = []
@@ -81,10 +86,6 @@ export class MerkleDistributor {
       re.push(MerkleDistributor.deserialize(buf.subarray(i, i + LEAF_LEN)))
     return new MerkleDistributor(re)
   }
-
-  /**
-   * For proofs
-   */
 
   private getLeaf = (data: Leaf): Buffer => {
     const seed = MerkleDistributor.serialize(data)
@@ -114,12 +115,21 @@ export class MerkleDistributor {
     return carry ? [...re, carry] : re
   }
 
+  /**
+   * Get the merkle root.
+   * @returns Merkle root.
+   */
   deriveMerkleRoot = (): Buffer => {
     let layer = this.leafs
     while (layer.length > 1) layer = this.nextLayer(layer)
     return layer[0]
   }
 
+  /**
+   * Get merkle proof.
+   * @param data Receiptent data.
+   * @returns Merkle proof.
+   */
   deriveProof = (data: Leaf): Buffer[] => {
     let child = this.getLeaf(data)
     const proof = []
@@ -135,6 +145,12 @@ export class MerkleDistributor {
     return proof
   }
 
+  /**
+   * Verify a merkle proof.
+   * @param proof Merkle proof.
+   * @param data Receiptent data.
+   * @returns Valid.
+   */
   verifyProof = (proof: Buffer[], data: Leaf): boolean => {
     let child = this.getLeaf(data)
     for (const sibling of proof) {

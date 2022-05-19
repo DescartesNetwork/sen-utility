@@ -31,7 +31,7 @@ export const isHash = (hash: Buffer | Uint8Array): boolean => {
  * @param index Receipt index
  * @param proposalPublicKey Proposal public key
  * @param authorityPublicKey Receipt authority public key
- * @param programId InterDAO program public key
+ * @param programId Sen Utility program public key
  * @returns Receipt public key
  */
 export const findReceipt = async (

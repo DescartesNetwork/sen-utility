@@ -20,7 +20,7 @@ jobs:
           node-version: '12.x'
           registry-url: 'https://registry.npmjs.org'
       - name: Welcome
-        run: echo Start deploying InterDAO
+        run: echo Start deploying Sen Utility
       - name: Install Solana CLI
         run: sh -c "$(curl -sSfL https://release.solana.com/stable/install)"
       - name: Reload PATH

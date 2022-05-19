@@ -10,9 +10,9 @@ import {
 import { program as getSplProgram } from '@project-serum/anchor/dist/cjs/spl/token'
 import { expect } from 'chai'
 
-import Utility, {
+import {
+  Utility,
   MerkleDistributor,
-  Leaf,
   DEFAULT_SEN_UTILITY_PROGRAM_ID,
   FeeOptions,
 } from '../app'
