@@ -68,7 +68,8 @@ pub fn claim(
 
   let current = current_timestamp().ok_or(ErrorCode::InvalidCurrentDate)?;
   // Update receipt data
-  receipt.destination = ctx.accounts.dst.key();
+  receipt.authority = ctx.accounts.authority.key();
+  receipt.distributor = distributor.key();
   receipt.amount = amount;
   receipt.started_at = started_at;
   receipt.salt = salt;

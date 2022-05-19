@@ -9,15 +9,17 @@ import {
   Program,
 } from '@project-serum/anchor'
 import { expect } from 'chai'
-import { asyncWait, getCurrentTimestamp, initializeMint } from './utils'
+import { asyncWait, getCurrentTimestamp, initializeMint } from '../utils'
 import { SenUtility } from '../target/types/sen_utility'
-import MerkleDistributor, { Leaf } from '../app/merkleDistributor'
+import { MerkleDistributor, Leaf } from '../app/merkleDistributor'
 
 const AMOUNT = new BN(1000)
-const { data: DUMMY_METADATA } = Buffer.from(
-  'b2b68b298b9bfa2dd2931cd879e5c9997837209476d25319514b46f7b7911d31',
-  'hex',
-).toJSON()
+const DUMMY_METADATA = [
+  ...Buffer.from(
+    'b2b68b298b9bfa2dd2931cd879e5c9997837209476d25319514b46f7b7911d31',
+    'hex',
+  ),
+]
 
 describe('merkle distributor', () => {
   // Configure the client to use the local cluster.
@@ -77,7 +79,7 @@ describe('merkle distributor', () => {
       owner: carol.publicKey,
     })
     // Init a mint
-    await initializeMint(9, mint, provider)
+    await initializeMint(9, mint, spl)
     await program.rpc.safeMintTo(new BN(10 ** 9), {
       accounts: {
         payer: provider.wallet.publicKey,
@@ -91,25 +93,23 @@ describe('merkle distributor', () => {
       },
     })
     // Tree data
-    treeData = [aliceTokenAccount, bobTokenAccount, carolTokenAccount].map(
-      (destination, i) => ({
-        destination,
-        amount: AMOUNT,
-        startedAt: new BN(getCurrentTimestamp() + 5), // now + 5s
-        salt: MerkleDistributor.salt(i.toString()),
-      }),
-    )
+    treeData = [alice, bob, carol].map((wallet, i) => ({
+      authority: wallet.publicKey,
+      amount: AMOUNT,
+      startedAt: new BN(getCurrentTimestamp() + 5), // now + 5s
+      salt: MerkleDistributor.salt(i.toString()),
+    }))
     merkleDistributor = new MerkleDistributor(treeData)
     // Receipts
     const [aliceReceiptPublicKey, bobReceiptPublicKey, carolReceiptPublicKey] =
       await Promise.all(
-        [alice, bob, carol].map(async (wallet, i) => {
+        treeData.map(async ({ authority, salt }, i) => {
           const [receiptPublicKey] = await web3.PublicKey.findProgramAddress(
             [
               Buffer.from('receipt'),
-              treeData[i].salt,
+              salt,
               distributor.publicKey.toBuffer(),
-              wallet.publicKey.toBuffer(),
+              authority.toBuffer(),
             ],
             program.programId,
           )
@@ -126,7 +126,7 @@ describe('merkle distributor', () => {
     const total = merkleDistributor.getTotal()
 
     await program.rpc.initializeDistributor(
-      merkleRoot,
+      [...merkleRoot],
       total,
       new BN(getCurrentTimestamp() + 15), // now + 10s
       DUMMY_METADATA,

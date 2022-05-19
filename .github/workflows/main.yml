@@ -1,0 +1,48 @@
+name: Automatic Deployment
+
+on:
+  push:
+    branches: [master]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Setup Rust env
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          components: rustfmt, clippy
+      - name: Setup Node env
+        uses: actions/setup-node@v2
+        with:
+          node-version: '12.x'
+          registry-url: 'https://registry.npmjs.org'
+      - name: Welcome
+        run: echo Start deploying InterDAO
+      - name: Install Solana CLI
+        run: sh -c "$(curl -sSfL https://release.solana.com/stable/install)"
+      - name: Reload PATH
+        run: |
+          source ~/.profile && source ~/.bash_profile
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
+          solana --version
+      - name: Install dependencies
+        run: |
+          npm i -g @project-serum/anchor-cli
+          npm install
+      - name: Build the program and library
+        run: |
+          anchor build
+          npm run build
+      - name: Publish the package
+        run: npm publish --access=public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Deploy docs to gh-pages branch
+        run: |
+          git remote set-url origin https://git:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git
+          npm run deploy -- -u "github-actions-bot <support+actions@github.com>"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

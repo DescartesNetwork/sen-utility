@@ -9,7 +9,7 @@ import {
   Program,
 } from '@project-serum/anchor'
 import { expect } from 'chai'
-import { initializeMint } from './utils'
+import { initializeMint } from '../utils'
 import { SenUtility } from '../target/types/sen_utility'
 
 describe('safe spl', () => {
@@ -26,7 +26,7 @@ describe('safe spl', () => {
 
   before(async () => {
     // Init a mint
-    await initializeMint(9, mint, provider)
+    await initializeMint(9, mint, spl)
     // Derive token account
     walletTokenAccount = await utils.token.associatedAddress({
       mint: mint.publicKey,

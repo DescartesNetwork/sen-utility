@@ -2,7 +2,7 @@ import { web3, BN } from '@project-serum/anchor'
 import { keccak_256 as hash } from 'js-sha3'
 
 export type Leaf = {
-  destination: web3.PublicKey
+  authority: web3.PublicKey
   amount: BN
   startedAt: BN
   salt: Buffer // 32 bytes
@@ -10,18 +10,18 @@ export type Leaf = {
 
 export const LEAF_LEN = 80
 
-class MerkleDistributor {
+export class MerkleDistributor {
   public receipients: Leaf[]
   public leafs: Buffer[]
 
   constructor(receipients: Leaf[] = []) {
     this.receipients = receipients
-    this.leafs = this.sort(
+    this.leafs = MerkleDistributor.sort(
       ...this.receipients.map((receipient) => this.getLeaf(receipient)),
     )
   }
 
-  private sort = (...args: Buffer[]): Buffer[] => {
+  static sort = (...args: Buffer[]): Buffer[] => {
     return [...args].sort((a, b) => {
       const i = Buffer.compare(a, b)
       if (i === 0) throw new Error('The receipients has a duplication')
@@ -29,24 +29,19 @@ class MerkleDistributor {
     })
   }
 
-  private serialize = ({
-    destination,
-    amount,
-    startedAt,
-    salt,
-  }: Leaf): Buffer => {
+  static serialize = ({ authority, amount, startedAt, salt }: Leaf): Buffer => {
     return Buffer.concat([
-      destination.toBuffer(),
+      authority.toBuffer(),
       amount.toBuffer('le', 8),
       startedAt.toBuffer('le', 8),
       salt,
     ])
   }
 
-  private deserialize = (buf: Buffer): Leaf => {
+  static deserialize = (buf: Buffer): Leaf => {
     if (buf.length !== LEAF_LEN) throw new Error('Invalid buffer')
     return {
-      destination: new web3.PublicKey(buf.subarray(0, 32)),
+      authority: new web3.PublicKey(buf.subarray(0, 32)),
       amount: new BN(buf.subarray(32, 40), 'le'),
       startedAt: new BN(buf.subarray(40, 48), 'le'),
       salt: Buffer.from(buf.subarray(48, 80)),
@@ -76,15 +71,15 @@ class MerkleDistributor {
    */
 
   toBuffer = () => {
-    return Buffer.concat(this.receipients.map(this.serialize))
+    return Buffer.concat(this.receipients.map(MerkleDistributor.serialize))
   }
 
-  fromBuffer = (buf: Buffer): Leaf[] => {
+  static fromBuffer = (buf: Buffer): MerkleDistributor => {
     if (buf.length % LEAF_LEN !== 0) throw new Error('Invalid buffer')
-    let re = []
+    let re: Leaf[] = []
     for (let i = 0; i < buf.length; i = i + LEAF_LEN)
-      re.push(this.deserialize(buf.subarray(i, i + LEAF_LEN)))
-    return re
+      re.push(MerkleDistributor.deserialize(buf.subarray(i, i + LEAF_LEN)))
+    return new MerkleDistributor(re)
   }
 
   /**
@@ -92,13 +87,13 @@ class MerkleDistributor {
    */
 
   private getLeaf = (data: Leaf): Buffer => {
-    const seed = this.serialize(data)
+    const seed = MerkleDistributor.serialize(data)
     return Buffer.from(hash.digest(seed))
   }
 
   private getParent = (a: Buffer, b: Buffer): Buffer => {
     if (!a || !b) throw new Error('Invalid child')
-    const seed = Buffer.concat(this.sort(a, b))
+    const seed = Buffer.concat(MerkleDistributor.sort(a, b))
     return Buffer.from(hash.digest(seed))
   }
 
@@ -148,5 +143,3 @@ class MerkleDistributor {
     return this.deriveMerkleRoot().compare(child) === 0
   }
 }
-
-export default MerkleDistributor
