@@ -1,17 +1,25 @@
 {
   "name": "@sentre/utility",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "main": "dist/app/index.js",
   "scripts": {
     "start": "nodemon app/index.ts",
     "build": "npm run clean && tsc",
     "clean": "rm -rf ./dist",
     "predeploy": "typedoc --excludePrivate --excludeProtected ./app/index.ts",
-    "deploy": "echo utility.sentre.so >> ./docs/CNAME && gh-pages -d docs",
+    "deploy": "echo utility.sentre.io >> ./docs/CNAME && gh-pages -d docs",
     "test": "npm run build && mocha --require ts-node/register -t 120000 lib-test/**/*.test.ts"
   },
   "author": "Tu Phan <tuphan@descartes.network>",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/DescartesNetwork/sen-utility.git"
+  },
+  "bugs": {
+    "url": "https://github.com/DescartesNetwork/sen-utility/issues"
+  },
+  "homepage": "https://utility.sentre.io",
   "dependencies": {
     "@project-serum/anchor": "^0.24.2",
     "bs58": "^5.0.0",
