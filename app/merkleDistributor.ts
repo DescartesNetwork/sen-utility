@@ -5,7 +5,10 @@ export type Leaf = {
   destination: web3.PublicKey
   amount: BN
   startedAt: BN
+  salt: Buffer // 32 bytes
 }
+
+export const LEAF_LEN = 80
 
 class MerkleDistributor {
   public receipients: Leaf[]
@@ -19,23 +22,34 @@ class MerkleDistributor {
   }
 
   private sort = (...args: Buffer[]): Buffer[] => {
-    return [...args].sort(Buffer.compare)
+    return [...args].sort((a, b) => {
+      const i = Buffer.compare(a, b)
+      if (i === 0) throw new Error('The receipients has a duplication')
+      return i
+    })
   }
 
-  private serialize = ({ destination, amount, startedAt }: Leaf): Buffer => {
+  private serialize = ({
+    destination,
+    amount,
+    startedAt,
+    salt,
+  }: Leaf): Buffer => {
     return Buffer.concat([
       destination.toBuffer(),
       amount.toBuffer('le', 8),
       startedAt.toBuffer('le', 8),
+      salt,
     ])
   }
 
   private deserialize = (buf: Buffer): Leaf => {
-    if (buf.length !== 48) throw new Error('Invalid buffer')
+    if (buf.length !== LEAF_LEN) throw new Error('Invalid buffer')
     return {
       destination: new web3.PublicKey(buf.subarray(0, 32)),
       amount: new BN(buf.subarray(32, 40), 'le'),
       startedAt: new BN(buf.subarray(40, 48), 'le'),
+      salt: Buffer.from(buf.subarray(48, 80)),
     }
   }
 
@@ -49,6 +63,14 @@ class MerkleDistributor {
     return total
   }
 
+  static salt = (defaultSeed?: string): Buffer => {
+    let _seed = ''
+    while (_seed.length < 128)
+      _seed = _seed + Math.round(Math.random() * 10).toString()
+    const seed = defaultSeed || _seed
+    return Buffer.from(hash.digest(seed))
+  }
+
   /**
    * For tree storage
    */
@@ -58,10 +80,10 @@ class MerkleDistributor {
   }
 
   fromBuffer = (buf: Buffer): Leaf[] => {
-    if (buf.length % 48 !== 0) throw new Error('Invalid buffer')
+    if (buf.length % LEAF_LEN !== 0) throw new Error('Invalid buffer')
     let re = []
-    for (let i = 0; i < buf.length; i = i + 48)
-      re.push(this.deserialize(buf.subarray(i, i + 48)))
+    for (let i = 0; i < buf.length; i = i + LEAF_LEN)
+      re.push(this.deserialize(buf.subarray(i, i + LEAF_LEN)))
     return re
   }
 

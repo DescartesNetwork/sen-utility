@@ -31,8 +31,9 @@ pub mod sen_utility {
     proof: Vec<[u8; 32]>,
     amount: u64,
     started_at: i64,
+    salt: [u8; 32],
   ) -> Result<()> {
-    merkle_distributor::claim(ctx, proof, amount, started_at)
+    merkle_distributor::claim(ctx, proof, amount, started_at, salt)
   }
 
   pub fn revoke(ctx: Context<Revoke>) -> Result<()> {

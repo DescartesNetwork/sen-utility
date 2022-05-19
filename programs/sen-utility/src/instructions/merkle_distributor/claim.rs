@@ -14,6 +14,7 @@ pub struct ClaimEvent {
 }
 
 #[derive(Accounts)]
+#[instruction(proof: Vec<[u8; 32]>, amount: u64, started_at: i64, salt: [u8; 32])]
 pub struct Claim<'info> {
   #[account(mut)]
   pub authority: Signer<'info>,
@@ -25,6 +26,7 @@ pub struct Claim<'info> {
     space = Receipt::LEN,
     seeds = [
       b"receipt".as_ref(),
+      &salt,
       &distributor.key().to_bytes(),
       &authority.key().to_bytes()
     ],
@@ -59,6 +61,7 @@ pub fn claim(
   proof: Vec<[u8; 32]>,
   amount: u64,
   started_at: i64,
+  salt: [u8; 32],
 ) -> Result<()> {
   let distributor = &mut ctx.accounts.distributor;
   let receipt = &mut ctx.accounts.receipt;
@@ -68,6 +71,7 @@ pub fn claim(
   receipt.destination = ctx.accounts.dst.key();
   receipt.amount = amount;
   receipt.started_at = started_at;
+  receipt.salt = salt;
   receipt.claimed_at = current;
   // Verify time
   if distributor.is_ended(current) {

@@ -64,45 +64,18 @@ describe('merkle distributor', () => {
       mint: mint.publicKey,
       owner: alice.publicKey,
     })
-    const [aliceReceiptPublicKey] = await web3.PublicKey.findProgramAddress(
-      [
-        Buffer.from('receipt'),
-        distributor.publicKey.toBuffer(),
-        alice.publicKey.toBuffer(),
-      ],
-      program.programId,
-    )
-    aliceReceipt = aliceReceiptPublicKey
     // Bob
     provider.connection.requestAirdrop(bob.publicKey, 10 ** 9)
     bobTokenAccount = await utils.token.associatedAddress({
       mint: mint.publicKey,
       owner: bob.publicKey,
     })
-    const [bobReceiptPublicKey] = await web3.PublicKey.findProgramAddress(
-      [
-        Buffer.from('receipt'),
-        distributor.publicKey.toBuffer(),
-        bob.publicKey.toBuffer(),
-      ],
-      program.programId,
-    )
-    bobReceipt = bobReceiptPublicKey
     // Carol
     provider.connection.requestAirdrop(carol.publicKey, 10 ** 9)
     carolTokenAccount = await utils.token.associatedAddress({
       mint: mint.publicKey,
       owner: carol.publicKey,
     })
-    const [carolReceiptPublicKey] = await web3.PublicKey.findProgramAddress(
-      [
-        Buffer.from('receipt'),
-        distributor.publicKey.toBuffer(),
-        carol.publicKey.toBuffer(),
-      ],
-      program.programId,
-    )
-    carolReceipt = carolReceiptPublicKey
     // Init a mint
     await initializeMint(9, mint, provider)
     await program.rpc.safeMintTo(new BN(10 ** 9), {
@@ -118,25 +91,34 @@ describe('merkle distributor', () => {
       },
     })
     // Tree data
-    const STARTED_AT = new BN(getCurrentTimestamp() + 5) // now + 5s
-    treeData = [
-      {
-        destination: aliceTokenAccount,
+    treeData = [aliceTokenAccount, bobTokenAccount, carolTokenAccount].map(
+      (destination, i) => ({
+        destination,
         amount: AMOUNT,
-        startedAt: STARTED_AT,
-      },
-      {
-        destination: bobTokenAccount,
-        amount: AMOUNT,
-        startedAt: STARTED_AT,
-      },
-      {
-        destination: carolTokenAccount,
-        amount: AMOUNT,
-        startedAt: STARTED_AT,
-      },
-    ]
+        startedAt: new BN(getCurrentTimestamp() + 5), // now + 5s
+        salt: MerkleDistributor.salt(i.toString()),
+      }),
+    )
     merkleDistributor = new MerkleDistributor(treeData)
+    // Receipts
+    const [aliceReceiptPublicKey, bobReceiptPublicKey, carolReceiptPublicKey] =
+      await Promise.all(
+        [alice, bob, carol].map(async (wallet, i) => {
+          const [receiptPublicKey] = await web3.PublicKey.findProgramAddress(
+            [
+              Buffer.from('receipt'),
+              treeData[i].salt,
+              distributor.publicKey.toBuffer(),
+              wallet.publicKey.toBuffer(),
+            ],
+            program.programId,
+          )
+          return receiptPublicKey
+        }),
+      )
+    aliceReceipt = aliceReceiptPublicKey
+    bobReceipt = bobReceiptPublicKey
+    carolReceipt = carolReceiptPublicKey
   })
 
   it('initialize distributor', async () => {
@@ -176,22 +158,28 @@ describe('merkle distributor', () => {
     const aliceData = treeData[0]
     const proof = merkleDistributor.deriveProof(aliceData)
     try {
-      await program.rpc.claim(proof, aliceData.amount, aliceData.startedAt, {
-        accounts: {
-          authority: alice.publicKey,
-          distributor: distributor.publicKey,
-          receipt: aliceReceipt,
-          dst: aliceTokenAccount,
-          treasurer,
-          treasury,
-          mint: mint.publicKey,
-          tokenProgram: utils.token.TOKEN_PROGRAM_ID,
-          associatedTokenProgram: utils.token.ASSOCIATED_PROGRAM_ID,
-          systemProgram: web3.SystemProgram.programId,
-          rent: web3.SYSVAR_RENT_PUBKEY,
+      await program.rpc.claim(
+        proof,
+        aliceData.amount,
+        aliceData.startedAt,
+        aliceData.salt,
+        {
+          accounts: {
+            authority: alice.publicKey,
+            distributor: distributor.publicKey,
+            receipt: aliceReceipt,
+            dst: aliceTokenAccount,
+            treasurer,
+            treasury,
+            mint: mint.publicKey,
+            tokenProgram: utils.token.TOKEN_PROGRAM_ID,
+            associatedTokenProgram: utils.token.ASSOCIATED_PROGRAM_ID,
+            systemProgram: web3.SystemProgram.programId,
+            rent: web3.SYSVAR_RENT_PUBKEY,
+          },
+          signers: [alice],
         },
-        signers: [alice],
-      })
+      )
       throw new Error('Bypass')
     } catch (er: any) {
       if (er.message === 'Bypass')
@@ -203,22 +191,28 @@ describe('merkle distributor', () => {
     await asyncWait(10)
     const bobData = treeData[1]
     const proof = merkleDistributor.deriveProof(bobData)
-    await program.rpc.claim(proof, bobData.amount, bobData.startedAt, {
-      accounts: {
-        authority: bob.publicKey,
-        distributor: distributor.publicKey,
-        receipt: bobReceipt,
-        dst: bobTokenAccount,
-        treasurer,
-        treasury,
-        mint: mint.publicKey,
-        tokenProgram: utils.token.TOKEN_PROGRAM_ID,
-        associatedTokenProgram: utils.token.ASSOCIATED_PROGRAM_ID,
-        systemProgram: web3.SystemProgram.programId,
-        rent: web3.SYSVAR_RENT_PUBKEY,
+    await program.rpc.claim(
+      proof,
+      bobData.amount,
+      bobData.startedAt,
+      bobData.salt,
+      {
+        accounts: {
+          authority: bob.publicKey,
+          distributor: distributor.publicKey,
+          receipt: bobReceipt,
+          dst: bobTokenAccount,
+          treasurer,
+          treasury,
+          mint: mint.publicKey,
+          tokenProgram: utils.token.TOKEN_PROGRAM_ID,
+          associatedTokenProgram: utils.token.ASSOCIATED_PROGRAM_ID,
+          systemProgram: web3.SystemProgram.programId,
+          rent: web3.SYSVAR_RENT_PUBKEY,
+        },
+        signers: [bob],
       },
-      signers: [bob],
-    })
+    )
     const { amount: nextAmount } = await spl.account.token.fetch(
       bobTokenAccount,
     )
@@ -230,26 +224,32 @@ describe('merkle distributor', () => {
     const carolData = treeData[2]
     const proof = merkleDistributor.deriveProof(carolData)
     try {
-      await program.rpc.claim(proof, carolData.amount, carolData.startedAt, {
-        accounts: {
-          authority: carol.publicKey,
-          distributor: distributor.publicKey,
-          receipt: carolReceipt,
-          dst: carolTokenAccount,
-          treasurer,
-          treasury,
-          mint: mint.publicKey,
-          tokenProgram: utils.token.TOKEN_PROGRAM_ID,
-          associatedTokenProgram: utils.token.ASSOCIATED_PROGRAM_ID,
-          systemProgram: web3.SystemProgram.programId,
-          rent: web3.SYSVAR_RENT_PUBKEY,
+      await program.rpc.claim(
+        proof,
+        carolData.amount,
+        carolData.startedAt,
+        carolData.salt,
+        {
+          accounts: {
+            authority: carol.publicKey,
+            distributor: distributor.publicKey,
+            receipt: carolReceipt,
+            dst: carolTokenAccount,
+            treasurer,
+            treasury,
+            mint: mint.publicKey,
+            tokenProgram: utils.token.TOKEN_PROGRAM_ID,
+            associatedTokenProgram: utils.token.ASSOCIATED_PROGRAM_ID,
+            systemProgram: web3.SystemProgram.programId,
+            rent: web3.SYSVAR_RENT_PUBKEY,
+          },
+          signers: [carol],
         },
-        signers: [carol],
-      })
+      )
       throw new Error('Bypass')
     } catch (er: any) {
       if (er.message == 'Bypass')
-        throw new Error('Claim in hustle should be failed')
+        throw new Error('Claim too late should be failed')
     }
   })
 
