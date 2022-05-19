@@ -7,23 +7,16 @@ import {
   Wallet,
   web3,
 } from '@project-serum/anchor'
-import {
-  program as getSplProgram,
-  program,
-} from '@project-serum/anchor/dist/cjs/spl/token'
+import { program as getSplProgram } from '@project-serum/anchor/dist/cjs/spl/token'
 import { expect } from 'chai'
 
 import Utility, {
   MerkleDistributor,
   Leaf,
   DEFAULT_SEN_UTILITY_PROGRAM_ID,
+  FeeOptions,
 } from '../app'
-import {
-  getCurrentTimestamp,
-  asyncWait,
-  initializeMint,
-  transferLamports,
-} from '../utils'
+import { asyncWait, initializeMint, transferLamports } from '../utils'
 
 const PRIV_KEY_FOR_TEST_ONLY = Buffer.from([
   2, 178, 226, 192, 204, 173, 232, 36, 247, 215, 203, 12, 177, 251, 254, 243,
@@ -43,6 +36,10 @@ describe('@sentre/utility', function () {
   const alice = new Wallet(new web3.Keypair())
   const bob = new Wallet(new web3.Keypair())
   const carol = new Wallet(new web3.Keypair())
+  const feeOptions: FeeOptions = {
+    fee: new BN(1000000),
+    feeCollectorAddress: alice.publicKey.toBase58(),
+  }
 
   let utility: Utility,
     splProgram: Program<SplToken>,
@@ -101,7 +98,12 @@ describe('@sentre/utility', function () {
   })
 
   it('safe mint to', async () => {
-    await utility.safeMintTo(SUPPLY, tokenAddress, wallet.publicKey.toBase58())
+    await utility.safeMintTo({
+      amount: SUPPLY,
+      tokenAddress,
+      dstWalletAddress: wallet.publicKey.toBase58(),
+      feeOptions,
+    })
     const tokenAccount = await utils.token.associatedAddress({
       mint: new web3.PublicKey(tokenAddress),
       owner: wallet.publicKey,
@@ -111,7 +113,12 @@ describe('@sentre/utility', function () {
   })
 
   it('safe transfer', async () => {
-    await utility.safeTransfer(AMOUNT, tokenAddress, alice.publicKey.toBase58())
+    await utility.safeTransfer({
+      amount: AMOUNT,
+      tokenAddress,
+      dstWalletAddress: alice.publicKey.toBase58(),
+      feeOptions,
+    })
     const tokenAccount = await utils.token.associatedAddress({
       mint: new web3.PublicKey(tokenAddress),
       owner: alice.publicKey,
@@ -122,13 +129,14 @@ describe('@sentre/utility', function () {
 
   it('initialize distributor', async () => {
     const merkleDistributor = MerkleDistributor.fromBuffer(dataBuffer)
-    const data = await utility.initializeDistributor(
+    const data = await utility.initializeDistributor({
       tokenAddress,
-      merkleDistributor.getTotal(),
-      merkleDistributor.deriveMerkleRoot(),
-      DUMMY_METADATA,
-      currentTime + 15,
-    )
+      total: merkleDistributor.getTotal(),
+      merkleRoot: merkleDistributor.deriveMerkleRoot(),
+      metadata: DUMMY_METADATA,
+      endedAt: currentTime + 15,
+      feeOptions,
+    })
     distributorAddress = data.distributorAddress
   })
 
@@ -137,13 +145,28 @@ describe('@sentre/utility', function () {
     const merkleDistributor = MerkleDistributor.fromBuffer(dataBuffer)
     const bobData = merkleDistributor.receipients[1]
     const proof = merkleDistributor.deriveProof(bobData)
-    const { dstAddress } = await bobUtility.claim(
+    const { dstAddress } = await bobUtility.claim({
       distributorAddress,
       proof,
-      bobData,
-    )
+      data: bobData,
+      feeOptions,
+    })
     const { amount } = await splProgram.account.token.fetch(dstAddress)
     expect(AMOUNT.eq(amount)).true
+  })
+
+  it('reclaim', async () => {
+    const bobUtility = new Utility(bob)
+    const merkleDistributor = MerkleDistributor.fromBuffer(dataBuffer)
+    const bobData = merkleDistributor.receipients[1]
+    const proof = merkleDistributor.deriveProof(bobData)
+    try {
+      await bobUtility.claim({ distributorAddress, proof, data: bobData })
+      throw new Error('Bypass')
+    } catch (er: any) {
+      if (er.message == 'Bypass') throw new Error('Reclaim should be failed')
+      else console.info(er.message)
+    }
   })
 
   it('claim too late', async () => {
@@ -153,11 +176,12 @@ describe('@sentre/utility', function () {
     const carolData = merkleDistributor.receipients[2]
     const proof = merkleDistributor.deriveProof(carolData)
     try {
-      await carolUtility.claim(distributorAddress, proof, carolData)
+      await carolUtility.claim({ distributorAddress, proof, data: carolData })
       throw new Error('Bypass')
     } catch (er: any) {
       if (er.message == 'Bypass')
         throw new Error('Claim too late should be failed')
+      else console.info(er.message)
     }
   })
 })

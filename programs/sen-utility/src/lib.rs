@@ -22,8 +22,9 @@ pub mod sen_utility {
     total: u64,
     ended_at: i64,
     metadata: [u8; 32],
+    fee: u64,
   ) -> Result<()> {
-    merkle_distributor::initialize_distributor(ctx, merkle_root, total, ended_at, metadata)
+    merkle_distributor::initialize_distributor(ctx, merkle_root, total, ended_at, metadata, fee)
   }
 
   pub fn claim(
@@ -32,19 +33,20 @@ pub mod sen_utility {
     amount: u64,
     started_at: i64,
     salt: [u8; 32],
+    fee: u64,
   ) -> Result<()> {
-    merkle_distributor::claim(ctx, proof, amount, started_at, salt)
+    merkle_distributor::claim(ctx, proof, amount, started_at, salt, fee)
   }
 
-  pub fn revoke(ctx: Context<Revoke>) -> Result<()> {
-    merkle_distributor::revoke(ctx)
+  pub fn revoke(ctx: Context<Revoke>, fee: u64) -> Result<()> {
+    merkle_distributor::revoke(ctx, fee)
   }
 
-  pub fn safe_mint_to(ctx: Context<SafeMintTo>, amount: u64) -> Result<()> {
-    safe_spl::safe_mint_to(ctx, amount)
+  pub fn safe_mint_to(ctx: Context<SafeMintTo>, amount: u64, fee: u64) -> Result<()> {
+    safe_spl::safe_mint_to(ctx, amount, fee)
   }
 
-  pub fn safe_transfer(ctx: Context<SafeTransfer>, amount: u64) -> Result<()> {
-    safe_spl::safe_transfer(ctx, amount)
+  pub fn safe_transfer(ctx: Context<SafeTransfer>, amount: u64, fee: u64) -> Result<()> {
+    safe_spl::safe_transfer(ctx, amount, fee)
   }
 }

@@ -1,6 +1,6 @@
 use crate::errors::ErrorCode;
 use crate::schema::{Distributor, Receipt};
-use crate::utils::current_timestamp;
+use crate::utils::{collect_fee, current_timestamp};
 use anchor_lang::prelude::*;
 use anchor_spl::{associated_token, token};
 
@@ -14,7 +14,7 @@ pub struct ClaimEvent {
 }
 
 #[derive(Accounts)]
-#[instruction(proof: Vec<[u8; 32]>, amount: u64, started_at: i64, salt: [u8; 32])]
+#[instruction(proof: Vec<[u8; 32]>, amount: u64, started_at: i64, salt: [u8; 32], fee: u64)]
 pub struct Claim<'info> {
   #[account(mut)]
   pub authority: Signer<'info>,
@@ -49,6 +49,9 @@ pub struct Claim<'info> {
     associated_token::authority = treasurer
   )]
   pub treasury: Box<Account<'info, token::TokenAccount>>,
+  #[account(mut)]
+  /// CHECK: Just a pure account
+  pub fee_collector: AccountInfo<'info>,
   pub mint: Box<Account<'info, token::Mint>>,
   pub token_program: Program<'info, token::Token>,
   pub associated_token_program: Program<'info, associated_token::AssociatedToken>,
@@ -62,7 +65,16 @@ pub fn claim(
   amount: u64,
   started_at: i64,
   salt: [u8; 32],
+  fee: u64,
 ) -> Result<()> {
+  // Charge fee
+  collect_fee(
+    fee,
+    ctx.accounts.fee_collector.to_account_info(),
+    ctx.accounts.authority.to_account_info(),
+    ctx.accounts.system_program.to_account_info(),
+  )?;
+
   let distributor = &mut ctx.accounts.distributor;
   let receipt = &mut ctx.accounts.receipt;
 

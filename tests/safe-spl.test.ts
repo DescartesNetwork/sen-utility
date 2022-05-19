@@ -40,11 +40,13 @@ describe('safe spl', () => {
 
   it('safe mint to', async () => {
     const amount = new BN(10 ** 9)
-    await program.rpc.safeMintTo(amount, {
+    const fee = new BN(1)
+    await program.rpc.safeMintTo(amount, fee, {
       accounts: {
         payer: provider.wallet.publicKey,
         authority: provider.wallet.publicKey,
         dst: walletTokenAccount,
+        feeCollector: provider.wallet.publicKey,
         mint: mint.publicKey,
         tokenProgram: utils.token.TOKEN_PROGRAM_ID,
         associatedTokenProgram: utils.token.ASSOCIATED_PROGRAM_ID,
@@ -60,12 +62,14 @@ describe('safe spl', () => {
 
   it('safe transfer', async () => {
     const amount = new BN(100)
-    await program.rpc.safeTransfer(amount, {
+    const fee = new BN(1)
+    await program.rpc.safeTransfer(amount, fee, {
       accounts: {
         payer: provider.wallet.publicKey,
         authority: alice.publicKey,
         src: walletTokenAccount,
         dst: aliceTokenAccount,
+        feeCollector: provider.wallet.publicKey,
         mint: mint.publicKey,
         tokenProgram: utils.token.TOKEN_PROGRAM_ID,
         associatedTokenProgram: utils.token.ASSOCIATED_PROGRAM_ID,

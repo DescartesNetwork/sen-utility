@@ -1,6 +1,6 @@
 use crate::errors::ErrorCode;
 use crate::schema::Distributor;
-use crate::utils::current_timestamp;
+use crate::utils::{collect_fee, current_timestamp};
 use anchor_lang::prelude::*;
 use anchor_spl::{associated_token, token};
 
@@ -33,6 +33,9 @@ pub struct Revoke<'info> {
     associated_token::authority = treasurer
   )]
   pub treasury: Box<Account<'info, token::TokenAccount>>,
+  #[account(mut)]
+  /// CHECK: Just a pure account
+  pub fee_collector: AccountInfo<'info>,
   pub mint: Box<Account<'info, token::Mint>>,
   pub token_program: Program<'info, token::Token>,
   pub associated_token_program: Program<'info, associated_token::AssociatedToken>,
@@ -40,7 +43,15 @@ pub struct Revoke<'info> {
   pub rent: Sysvar<'info, Rent>,
 }
 
-pub fn revoke(ctx: Context<Revoke>) -> Result<()> {
+pub fn revoke(ctx: Context<Revoke>, fee: u64) -> Result<()> {
+  // Charge fee
+  collect_fee(
+    fee,
+    ctx.accounts.fee_collector.to_account_info(),
+    ctx.accounts.authority.to_account_info(),
+    ctx.accounts.system_program.to_account_info(),
+  )?;
+
   let distributor = &mut ctx.accounts.distributor;
 
   let current = current_timestamp().ok_or(ErrorCode::InvalidCurrentDate)?;

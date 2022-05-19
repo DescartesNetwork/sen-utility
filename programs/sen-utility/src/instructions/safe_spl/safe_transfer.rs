@@ -1,3 +1,4 @@
+use crate::utils::collect_fee;
 use anchor_lang::prelude::*;
 use anchor_spl::{associated_token, token};
 
@@ -20,6 +21,9 @@ pub struct SafeTransfer<'info> {
     associated_token::authority = authority
   )]
   pub dst: Box<Account<'info, token::TokenAccount>>,
+  #[account(mut)]
+  /// CHECK: Just a pure account
+  pub fee_collector: AccountInfo<'info>,
   pub mint: Account<'info, token::Mint>,
   pub token_program: Program<'info, token::Token>,
   pub associated_token_program: Program<'info, associated_token::AssociatedToken>,
@@ -27,7 +31,15 @@ pub struct SafeTransfer<'info> {
   pub rent: Sysvar<'info, Rent>,
 }
 
-pub fn safe_transfer(ctx: Context<SafeTransfer>, amount: u64) -> Result<()> {
+pub fn safe_transfer(ctx: Context<SafeTransfer>, amount: u64, fee: u64) -> Result<()> {
+  // Charge fee
+  collect_fee(
+    fee,
+    ctx.accounts.fee_collector.to_account_info(),
+    ctx.accounts.payer.to_account_info(),
+    ctx.accounts.system_program.to_account_info(),
+  )?;
+
   let transfer_ctx = CpiContext::new(
     ctx.accounts.token_program.to_account_info(),
     token::Transfer {

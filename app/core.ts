@@ -5,9 +5,16 @@ import {
   DEFAULT_RPC_ENDPOINT,
   DEFAULT_SEN_UTILITY_PROGRAM_ID,
   DEFAULT_SEN_UTILITY_IDL,
+  FEE_OPTIONS,
 } from './constant'
 import { Leaf } from './merkleDistributor'
-import { AnchorWallet, IdlEvents, DistributorData, ReceiptData } from './types'
+import {
+  AnchorWallet,
+  IdlEvents,
+  DistributorData,
+  ReceiptData,
+  FeeOptions,
+} from './types'
 import { findReceipt, isAddress, isHash } from './utils'
 
 class Utility {
@@ -192,21 +199,35 @@ class Utility {
 
   /**
    * Initialize a merkle distributor.
-   * @param merkleRoot Root of the merkle tree.
+   * @param tokenAddress Distributed token address.
    * @param total The total number of tokens that will be distributed out to the community.
+   * @param merkleRoot Root of the merkle tree.
    * @param metadata The representation that link to the recipient data. For example: CID on IPFS.
    * @param endedAt (Optional) (In seconds) Due date for the distributor, after that the distributor owner can revoke the remaining tokens. Default: 0 - no due date.
    * @param distributor (Optional) The distributor keypair. If it's not provided, a new one will be auto generated.
+   * @param feeOptions (Optional) Protocol fee.
    * @returns { txId, distributorAddress }
    */
-  initializeDistributor = async (
-    tokenAddress: string,
-    total: BN,
-    merkleRoot: Buffer | Uint8Array,
-    metadata: Buffer | Uint8Array,
-    endedAt: number = 0,
-    distributor: web3.Keypair = web3.Keypair.generate(),
-  ) => {
+  initializeDistributor = async ({
+    tokenAddress,
+    total,
+    merkleRoot,
+    metadata,
+    endedAt = 0,
+    distributor = web3.Keypair.generate(),
+    feeOptions = FEE_OPTIONS(this._provider.wallet.publicKey.toBase58()),
+  }: {
+    tokenAddress: string
+    total: BN
+    merkleRoot: Buffer | Uint8Array
+    metadata: Buffer | Uint8Array
+    endedAt?: number
+    distributor?: web3.Keypair
+    feeOptions?: FeeOptions
+  }) => {
+    const { fee, feeCollectorAddress } = feeOptions
+    if (!isAddress(feeCollectorAddress))
+      throw new Error('Invalid fee collector address')
     if (!isAddress(tokenAddress)) throw new Error('Invalid token address')
     if (!isHash(merkleRoot)) throw new Error('Invalid merkle root')
     if (total.isNeg()) throw new Error('The total must not be negative')
@@ -232,6 +253,7 @@ class Utility {
       total,
       new BN(endedAt),
       [...metadata],
+      fee,
       {
         accounts: {
           authority: this._provider.wallet.publicKey,
@@ -239,6 +261,7 @@ class Utility {
           src: srcPublicKey,
           treasurer: treasurerPublicKey,
           treasury: treasuryPublicKey,
+          feeCollector: new web3.PublicKey(feeCollectorAddress),
           mint: tokenPublicKey,
           tokenProgram: utils.token.TOKEN_PROGRAM_ID,
           associatedTokenProgram: utils.token.ASSOCIATED_PROGRAM_ID,
@@ -256,13 +279,23 @@ class Utility {
    * @param distributorAddress The distributor address.
    * @param proof Merkle proof.
    * @param data Receipient data.
+   * @param feeOptions (Optional) Protocol fee.
    * @returns { txId, dstAddress }
    */
-  claim = async (
-    distributorAddress: string,
-    proof: Array<Buffer>,
-    data: Leaf,
-  ) => {
+  claim = async ({
+    distributorAddress,
+    proof,
+    data,
+    feeOptions = FEE_OPTIONS(this._provider.wallet.publicKey.toBase58()),
+  }: {
+    distributorAddress: string
+    proof: Array<Buffer>
+    data: Leaf
+    feeOptions?: FeeOptions
+  }) => {
+    const { fee, feeCollectorAddress } = feeOptions
+    if (!isAddress(feeCollectorAddress))
+      throw new Error('Invalid fee collector address')
     if (!isAddress(distributorAddress))
       throw new Error('Invalid distributor address')
     if (!this._provider.wallet.publicKey.equals(data.authority))
@@ -293,6 +326,7 @@ class Utility {
       data.amount,
       data.startedAt,
       data.salt,
+      fee,
       {
         accounts: {
           authority: this._provider.wallet.publicKey,
@@ -301,6 +335,7 @@ class Utility {
           dst: dstPublicKey,
           treasurer: treasurerPublicKey,
           treasury: treasuryPublicKey,
+          feeCollector: new web3.PublicKey(feeCollectorAddress),
           mint: tokenPublicKey,
           tokenProgram: utils.token.TOKEN_PROGRAM_ID,
           associatedTokenProgram: utils.token.ASSOCIATED_PROGRAM_ID,
@@ -318,13 +353,23 @@ class Utility {
    * @param tokenAddress The token address.
    * @param dstWalletAddress The destination wallet address.
    * @param data Receipient data.
+   * @param feeOptions (Optional) Protocol fee.
    * @returns { txId, dstAddress }
    */
-  safeMintTo = async (
-    amount: BN,
-    tokenAddress: string,
-    dstWalletAddress: string,
-  ) => {
+  safeMintTo = async ({
+    amount,
+    tokenAddress,
+    dstWalletAddress,
+    feeOptions = FEE_OPTIONS(this._provider.wallet.publicKey.toBase58()),
+  }: {
+    amount: BN
+    tokenAddress: string
+    dstWalletAddress: string
+    feeOptions?: FeeOptions
+  }) => {
+    const { fee, feeCollectorAddress } = feeOptions
+    if (!isAddress(feeCollectorAddress))
+      throw new Error('Invalid fee collector address')
     if (amount.isNeg()) throw new Error('Token amount must not be negative')
     if (!isAddress(tokenAddress)) throw new Error('Invalid token address')
     if (!isAddress(dstWalletAddress))
@@ -337,11 +382,12 @@ class Utility {
       owner: dstWalletPublicKey,
     })
 
-    const txId = await this.program.rpc.safeMintTo(amount, {
+    const txId = await this.program.rpc.safeMintTo(amount, fee, {
       accounts: {
         payer: this._provider.wallet.publicKey,
         authority: dstWalletPublicKey,
         dst: dstPublicKey,
+        feeCollector: new web3.PublicKey(feeCollectorAddress),
         mint: tokenPublicKey,
         tokenProgram: utils.token.TOKEN_PROGRAM_ID,
         associatedTokenProgram: utils.token.ASSOCIATED_PROGRAM_ID,
@@ -359,13 +405,23 @@ class Utility {
    * @param tokenAddress The token address.
    * @param dstWalletAddress The destination wallet address.
    * @param data Receipient data.
+   * @param feeOptions (Optional) Protocol fee.
    * @returns { txId, dstAddress }
    */
-  safeTransfer = async (
-    amount: BN,
-    tokenAddress: string,
-    dstWalletAddress: string,
-  ) => {
+  safeTransfer = async ({
+    amount,
+    tokenAddress,
+    dstWalletAddress,
+    feeOptions = FEE_OPTIONS(this._provider.wallet.publicKey.toBase58()),
+  }: {
+    amount: BN
+    tokenAddress: string
+    dstWalletAddress: string
+    feeOptions?: FeeOptions
+  }) => {
+    const { fee, feeCollectorAddress } = feeOptions
+    if (!isAddress(feeCollectorAddress))
+      throw new Error('Invalid fee collector address')
     if (amount.isNeg()) throw new Error('Token amount must not be negative')
     if (!isAddress(tokenAddress)) throw new Error('Invalid token address')
     if (!isAddress(dstWalletAddress))
@@ -382,12 +438,13 @@ class Utility {
       owner: dstWalletPublicKey,
     })
 
-    const txId = await this.program.rpc.safeTransfer(amount, {
+    const txId = await this.program.rpc.safeTransfer(amount, fee, {
       accounts: {
         payer: this._provider.wallet.publicKey,
         authority: dstWalletPublicKey,
         src: srcPublicKey,
         dst: dstPublicKey,
+        feeCollector: new web3.PublicKey(feeCollectorAddress),
         mint: tokenPublicKey,
         tokenProgram: utils.token.TOKEN_PROGRAM_ID,
         associatedTokenProgram: utils.token.ASSOCIATED_PROGRAM_ID,

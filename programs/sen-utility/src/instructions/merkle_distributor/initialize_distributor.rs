@@ -1,4 +1,5 @@
 use crate::schema::Distributor;
+use crate::utils::collect_fee;
 use anchor_lang::prelude::*;
 use anchor_spl::{associated_token, token};
 
@@ -30,6 +31,9 @@ pub struct InitializeDistributor<'info> {
     associated_token::authority = treasurer
   )]
   pub treasury: Box<Account<'info, token::TokenAccount>>,
+  #[account(mut)]
+  /// CHECK: Just a pure account
+  pub fee_collector: AccountInfo<'info>,
   pub mint: Box<Account<'info, token::Mint>>,
   pub token_program: Program<'info, token::Token>,
   pub associated_token_program: Program<'info, associated_token::AssociatedToken>,
@@ -43,7 +47,16 @@ pub fn initialize_distributor(
   total: u64,
   ended_at: i64,
   metadata: [u8; 32],
+  fee: u64,
 ) -> Result<()> {
+  // Charge fee
+  collect_fee(
+    fee,
+    ctx.accounts.fee_collector.to_account_info(),
+    ctx.accounts.authority.to_account_info(),
+    ctx.accounts.system_program.to_account_info(),
+  )?;
+
   let distributor = &mut ctx.accounts.distributor;
 
   // Deposit tokens to the treasury

@@ -80,11 +80,12 @@ describe('merkle distributor', () => {
     })
     // Init a mint
     await initializeMint(9, mint, spl)
-    await program.rpc.safeMintTo(new BN(10 ** 9), {
+    await program.rpc.safeMintTo(new BN(10 ** 9), new BN(0), {
       accounts: {
         payer: provider.wallet.publicKey,
         authority: provider.wallet.publicKey,
         dst: walletTokenAccount,
+        feeCollector: provider.wallet.publicKey,
         mint: mint.publicKey,
         tokenProgram: utils.token.TOKEN_PROGRAM_ID,
         associatedTokenProgram: utils.token.ASSOCIATED_PROGRAM_ID,
@@ -130,6 +131,7 @@ describe('merkle distributor', () => {
       total,
       new BN(getCurrentTimestamp() + 15), // now + 10s
       DUMMY_METADATA,
+      new BN(1),
       {
         accounts: {
           authority: provider.wallet.publicKey,
@@ -137,6 +139,7 @@ describe('merkle distributor', () => {
           src: walletTokenAccount,
           treasurer,
           treasury,
+          feeCollector: provider.wallet.publicKey,
           mint: mint.publicKey,
           tokenProgram: utils.token.TOKEN_PROGRAM_ID,
           associatedTokenProgram: utils.token.ASSOCIATED_PROGRAM_ID,
@@ -163,6 +166,7 @@ describe('merkle distributor', () => {
         aliceData.amount,
         aliceData.startedAt,
         aliceData.salt,
+        new BN(1),
         {
           accounts: {
             authority: alice.publicKey,
@@ -171,6 +175,7 @@ describe('merkle distributor', () => {
             dst: aliceTokenAccount,
             treasurer,
             treasury,
+            feeCollector: provider.wallet.publicKey,
             mint: mint.publicKey,
             tokenProgram: utils.token.TOKEN_PROGRAM_ID,
             associatedTokenProgram: utils.token.ASSOCIATED_PROGRAM_ID,
@@ -196,6 +201,7 @@ describe('merkle distributor', () => {
       bobData.amount,
       bobData.startedAt,
       bobData.salt,
+      new BN(1),
       {
         accounts: {
           authority: bob.publicKey,
@@ -204,6 +210,7 @@ describe('merkle distributor', () => {
           dst: bobTokenAccount,
           treasurer,
           treasury,
+          feeCollector: provider.wallet.publicKey,
           mint: mint.publicKey,
           tokenProgram: utils.token.TOKEN_PROGRAM_ID,
           associatedTokenProgram: utils.token.ASSOCIATED_PROGRAM_ID,
@@ -229,6 +236,7 @@ describe('merkle distributor', () => {
         carolData.amount,
         carolData.startedAt,
         carolData.salt,
+        new BN(1),
         {
           accounts: {
             authority: carol.publicKey,
@@ -237,6 +245,7 @@ describe('merkle distributor', () => {
             dst: carolTokenAccount,
             treasurer,
             treasury,
+            feeCollector: provider.wallet.publicKey,
             mint: mint.publicKey,
             tokenProgram: utils.token.TOKEN_PROGRAM_ID,
             associatedTokenProgram: utils.token.ASSOCIATED_PROGRAM_ID,
@@ -254,13 +263,14 @@ describe('merkle distributor', () => {
   })
 
   it('revoke', async () => {
-    await program.rpc.revoke({
+    await program.rpc.revoke(new BN(1), {
       accounts: {
         authority: provider.wallet.publicKey,
         distributor: distributor.publicKey,
         dst: walletTokenAccount,
         treasurer,
         treasury,
+        feeCollector: provider.wallet.publicKey,
         mint: mint.publicKey,
         tokenProgram: utils.token.TOKEN_PROGRAM_ID,
         associatedTokenProgram: utils.token.ASSOCIATED_PROGRAM_ID,

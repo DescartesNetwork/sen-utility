@@ -1,7 +1,8 @@
 import bs58 from 'bs58'
-import { BorshAccountsCoder } from '@project-serum/anchor'
+import { web3, BorshAccountsCoder, BN } from '@project-serum/anchor'
 
 import { IDL } from '../target/types/sen_utility'
+import { FeeOptions } from './types'
 
 export const DEFAULT_RPC_ENDPOINT =
   'https://psytrbhymqlkfrhudd.dev.genesysgo.net:8899'
@@ -15,3 +16,10 @@ export const DISTRIBUTOR_DISCRIMINATOR = bs58.encode(
 export const RECEIPT_DISCRIMINATOR = bs58.encode(
   BorshAccountsCoder.accountDiscriminator('receipt'),
 )
+
+export const FEE_OPTIONS = (
+  walletAddress: string = new web3.Keypair().publicKey.toBase58(),
+): FeeOptions => ({
+  fee: new BN(0),
+  feeCollectorAddress: walletAddress,
+})
