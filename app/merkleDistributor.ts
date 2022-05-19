@@ -32,8 +32,8 @@ export class MerkleDistributor {
   static serialize = ({ authority, amount, startedAt, salt }: Leaf): Buffer => {
     return Buffer.concat([
       authority.toBuffer(),
-      amount.toBuffer('le', 8),
-      startedAt.toBuffer('le', 8),
+      amount.toArrayLike(Buffer, 'le', 8),
+      startedAt.toArrayLike(Buffer, 'le', 8),
       salt,
     ])
   }
