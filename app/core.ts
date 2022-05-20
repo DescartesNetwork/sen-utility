@@ -128,7 +128,7 @@ export class Utility {
    * @returns Receipt readable data.
    */
   getReceiptData = async (receiptAddress: string): Promise<ReceiptData> => {
-    return this.program.account.distributor.fetch(receiptAddress) as any
+    return this.program.account.receipt.fetch(receiptAddress) as any
   }
 
   /**
