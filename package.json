@@ -6,7 +6,7 @@
     "start": "nodemon app/index.ts",
     "build": "npm run clean && tsc",
     "clean": "rm -rf ./dist",
-    "predeploy": "typedoc --excludePrivate --excludeProtected ./app/index.ts",
+    "predeploy": "typedoc --excludePrivate --excludeProtected --includeVersion ./app/index.ts",
     "deploy": "echo utility.sentre.io >> ./docs/CNAME && gh-pages -d docs",
     "test": "npm run build && mocha --require ts-node/register -t 120000 lib-test/**/*.test.ts"
   },
