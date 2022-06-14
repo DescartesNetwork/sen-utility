@@ -206,7 +206,8 @@ export class Utility {
    * @param endedAt (Optional) (In seconds) Due date for the distributor, after that the distributor owner can revoke the remaining tokens. Default: 0 - no due date.
    * @param distributor (Optional) The distributor keypair. If it's not provided, a new one will be auto generated.
    * @param feeOptions (Optional) Protocol fee.
-   * @returns { txId, distributorAddress }
+   * @param sendAndConfirm (Optional) Send and confirm the transaction immediately.
+   * @returns { tx, txId, distributorAddress }
    */
   initializeDistributor = async ({
     tokenAddress,
@@ -286,7 +287,8 @@ export class Utility {
    * @param proof Merkle proof.
    * @param data Receipient data.
    * @param feeOptions (Optional) Protocol fee.
-   * @returns { txId, dstAddress }
+   * @param sendAndConfirm (Optional) Send and confirm the transaction immediately.
+   * @returns { tx, txId, dstAddress }
    */
   claim = async ({
     distributorAddress,
@@ -363,7 +365,8 @@ export class Utility {
    * Revoke the remaining tokens of a distribution.
    * @param distributorAddress The distributor address.
    * @param feeOptions (Optional) Protocol fee.
-   * @returns { txId, dstAddress }
+   * @param sendAndConfirm (Optional) Send and confirm the transaction immediately.
+   * @returns { tx, txId, dstAddress }
    */
   revoke = async ({
     distributorAddress,
@@ -427,7 +430,8 @@ export class Utility {
    * @param dstWalletAddress The destination wallet address.
    * @param data Receipient data.
    * @param feeOptions (Optional) Protocol fee.
-   * @returns { txId, dstAddress }
+   * @param sendAndConfirm (Optional) Send and confirm the transaction immediately.
+   * @returns { tx, txId, dstAddress }
    */
   safeMintTo = async ({
     amount,
@@ -485,7 +489,8 @@ export class Utility {
    * @param dstWalletAddress The destination wallet address.
    * @param data Receipient data.
    * @param feeOptions (Optional) Protocol fee.
-   * @returns { txId, dstAddress }
+   * @param sendAndConfirm (Optional) Send and confirm the transaction immediately.
+   * @returns { tx, txId, srcAddress, dstAddress }
    */
   safeTransfer = async ({
     amount,
