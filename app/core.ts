@@ -216,6 +216,7 @@ export class Utility {
     endedAt = 0,
     distributor = web3.Keypair.generate(),
     feeOptions = FEE_OPTIONS(this._provider.wallet.publicKey.toBase58()),
+    sendAndConfirm = true,
   }: {
     tokenAddress: string
     total: BN
@@ -224,6 +225,7 @@ export class Utility {
     endedAt?: number
     distributor?: web3.Keypair
     feeOptions?: FeeOptions
+    sendAndConfirm?: boolean
   }) => {
     const { fee, feeCollectorAddress } = feeOptions
     if (!isAddress(feeCollectorAddress))
@@ -248,30 +250,34 @@ export class Utility {
       owner: treasurerPublicKey,
     })
 
-    const txId = await this.program.rpc.initializeDistributor(
-      [...merkleRoot],
-      total,
-      new BN(endedAt),
-      [...metadata],
-      fee,
-      {
-        accounts: {
-          authority: this._provider.wallet.publicKey,
-          distributor: distributor.publicKey,
-          src: srcPublicKey,
-          treasurer: treasurerPublicKey,
-          treasury: treasuryPublicKey,
-          feeCollector: new web3.PublicKey(feeCollectorAddress),
-          mint: tokenPublicKey,
-          tokenProgram: utils.token.TOKEN_PROGRAM_ID,
-          associatedTokenProgram: utils.token.ASSOCIATED_PROGRAM_ID,
-          systemProgram: web3.SystemProgram.programId,
-          rent: web3.SYSVAR_RENT_PUBKEY,
-        },
-        signers: [distributor],
-      },
-    )
-    return { txId, distributorAddress }
+    const builder = await this.program.methods
+      .initializeDistributor(
+        [...merkleRoot],
+        total,
+        new BN(endedAt),
+        [...metadata],
+        fee,
+      )
+      .accounts({
+        authority: this._provider.wallet.publicKey,
+        distributor: distributor.publicKey,
+        src: srcPublicKey,
+        treasurer: treasurerPublicKey,
+        treasury: treasuryPublicKey,
+        feeCollector: new web3.PublicKey(feeCollectorAddress),
+        mint: tokenPublicKey,
+        tokenProgram: utils.token.TOKEN_PROGRAM_ID,
+        associatedTokenProgram: utils.token.ASSOCIATED_PROGRAM_ID,
+        systemProgram: web3.SystemProgram.programId,
+        rent: web3.SYSVAR_RENT_PUBKEY,
+      })
+      .signers([distributor])
+    const tx = await builder.transaction()
+    const txId = sendAndConfirm
+      ? await builder.rpc({ commitment: 'confirmed' })
+      : ''
+
+    return { tx, txId, distributorAddress }
   }
 
   /**
@@ -287,11 +293,13 @@ export class Utility {
     proof,
     data,
     feeOptions = FEE_OPTIONS(this._provider.wallet.publicKey.toBase58()),
+    sendAndConfirm = true,
   }: {
     distributorAddress: string
     proof: Array<Buffer>
     data: Leaf
     feeOptions?: FeeOptions
+    sendAndConfirm?: boolean
   }) => {
     const { fee, feeCollectorAddress } = feeOptions
     if (!isAddress(feeCollectorAddress))
@@ -321,30 +329,95 @@ export class Utility {
       owner: treasurerPublicKey,
     })
 
-    const txId = await this.program.rpc.claim(
-      proof,
-      data.amount,
-      data.startedAt,
-      data.salt,
-      fee,
-      {
-        accounts: {
-          authority: this._provider.wallet.publicKey,
-          distributor: new web3.PublicKey(distributorAddress),
-          receipt: new web3.PublicKey(receiptAddress),
-          dst: dstPublicKey,
-          treasurer: treasurerPublicKey,
-          treasury: treasuryPublicKey,
-          feeCollector: new web3.PublicKey(feeCollectorAddress),
-          mint: tokenPublicKey,
-          tokenProgram: utils.token.TOKEN_PROGRAM_ID,
-          associatedTokenProgram: utils.token.ASSOCIATED_PROGRAM_ID,
-          systemProgram: web3.SystemProgram.programId,
-          rent: web3.SYSVAR_RENT_PUBKEY,
-        },
-      },
+    const builder = await this.program.methods
+      .claim(
+        proof.map((e) => e.toJSON().data),
+        data.amount,
+        data.startedAt,
+        data.salt.toJSON().data,
+        fee,
+      )
+      .accounts({
+        authority: this._provider.wallet.publicKey,
+        distributor: new web3.PublicKey(distributorAddress),
+        receipt: new web3.PublicKey(receiptAddress),
+        dst: dstPublicKey,
+        treasurer: treasurerPublicKey,
+        treasury: treasuryPublicKey,
+        feeCollector: new web3.PublicKey(feeCollectorAddress),
+        mint: tokenPublicKey,
+        tokenProgram: utils.token.TOKEN_PROGRAM_ID,
+        associatedTokenProgram: utils.token.ASSOCIATED_PROGRAM_ID,
+        systemProgram: web3.SystemProgram.programId,
+        rent: web3.SYSVAR_RENT_PUBKEY,
+      })
+    const tx = await builder.transaction()
+    const txId = sendAndConfirm
+      ? await builder.rpc({ commitment: 'confirmed' })
+      : ''
+
+    return { tx, txId, dstAddress: dstPublicKey.toBase58() }
+  }
+
+  /**
+   * Revoke the remaining tokens of a distribution.
+   * @param distributorAddress The distributor address.
+   * @param feeOptions (Optional) Protocol fee.
+   * @returns { txId, dstAddress }
+   */
+  revoke = async ({
+    distributorAddress,
+    feeOptions = FEE_OPTIONS(this._provider.wallet.publicKey.toBase58()),
+    sendAndConfirm = true,
+  }: {
+    distributorAddress: string
+    feeOptions?: FeeOptions
+    sendAndConfirm?: boolean
+  }) => {
+    const { fee, feeCollectorAddress } = feeOptions
+    if (!isAddress(feeCollectorAddress))
+      throw new Error('Invalid fee collector address')
+    if (!isAddress(distributorAddress))
+      throw new Error('Invalid distributor address')
+
+    const { mint: tokenPublicKey, authority } = await this.getDistributorData(
+      distributorAddress,
     )
-    return { txId, dstAddress: dstPublicKey.toBase58() }
+    if (!this._provider.wallet.publicKey.equals(authority))
+      throw new Error('Invalid athority address')
+
+    const dstPublicKey = await utils.token.associatedAddress({
+      mint: tokenPublicKey,
+      owner: this._provider.wallet.publicKey,
+    })
+    const treasurerAddress = await this.deriveTreasurerAddress(
+      distributorAddress,
+    )
+    const treasurerPublicKey = new web3.PublicKey(treasurerAddress)
+    const treasuryPublicKey = await utils.token.associatedAddress({
+      mint: tokenPublicKey,
+      owner: treasurerPublicKey,
+    })
+
+    const builder = await this.program.methods.revoke(fee).accounts({
+      authority: this._provider.wallet.publicKey,
+      distributor: new web3.PublicKey(distributorAddress),
+      dst: dstPublicKey,
+      treasurer: treasurerPublicKey,
+      treasury: treasuryPublicKey,
+      feeCollector: new web3.PublicKey(feeCollectorAddress),
+      mint: tokenPublicKey,
+      tokenProgram: utils.token.TOKEN_PROGRAM_ID,
+      associatedTokenProgram: utils.token.ASSOCIATED_PROGRAM_ID,
+      systemProgram: web3.SystemProgram.programId,
+      rent: web3.SYSVAR_RENT_PUBKEY,
+    })
+    const tx = await builder.transaction()
+    const txId = sendAndConfirm
+      ? await builder.rpc({ commitment: 'confirmed' })
+      : ''
+
+    return { tx, txId, dstAddress: dstPublicKey.toBase58() }
   }
 
   /**
@@ -361,11 +434,13 @@ export class Utility {
     tokenAddress,
     dstWalletAddress,
     feeOptions = FEE_OPTIONS(this._provider.wallet.publicKey.toBase58()),
+    sendAndConfirm = true,
   }: {
     amount: BN
     tokenAddress: string
     dstWalletAddress: string
     feeOptions?: FeeOptions
+    sendAndConfirm?: boolean
   }) => {
     const { fee, feeCollectorAddress } = feeOptions
     if (!isAddress(feeCollectorAddress))
@@ -382,8 +457,9 @@ export class Utility {
       owner: dstWalletPublicKey,
     })
 
-    const txId = await this.program.rpc.safeMintTo(amount, fee, {
-      accounts: {
+    const builder = await this.program.methods
+      .safeMintTo(amount, fee)
+      .accounts({
         payer: this._provider.wallet.publicKey,
         authority: dstWalletPublicKey,
         dst: dstPublicKey,
@@ -393,10 +469,13 @@ export class Utility {
         associatedTokenProgram: utils.token.ASSOCIATED_PROGRAM_ID,
         systemProgram: web3.SystemProgram.programId,
         rent: web3.SYSVAR_RENT_PUBKEY,
-      },
-    })
+      })
+    const tx = await builder.transaction()
+    const txId = sendAndConfirm
+      ? await builder.rpc({ commitment: 'confirmed' })
+      : ''
 
-    return { txId, dstAddress: dstPublicKey.toBase58() }
+    return { tx, txId, dstAddress: dstPublicKey.toBase58() }
   }
 
   /**
@@ -413,11 +492,13 @@ export class Utility {
     tokenAddress,
     dstWalletAddress,
     feeOptions = FEE_OPTIONS(this._provider.wallet.publicKey.toBase58()),
+    sendAndConfirm = true,
   }: {
     amount: BN
     tokenAddress: string
     dstWalletAddress: string
     feeOptions?: FeeOptions
+    sendAndConfirm?: boolean
   }) => {
     const { fee, feeCollectorAddress } = feeOptions
     if (!isAddress(feeCollectorAddress))
@@ -438,8 +519,9 @@ export class Utility {
       owner: dstWalletPublicKey,
     })
 
-    const txId = await this.program.rpc.safeTransfer(amount, fee, {
-      accounts: {
+    const builder = await this.program.methods
+      .safeTransfer(amount, fee)
+      .accounts({
         payer: this._provider.wallet.publicKey,
         authority: dstWalletPublicKey,
         src: srcPublicKey,
@@ -450,10 +532,14 @@ export class Utility {
         associatedTokenProgram: utils.token.ASSOCIATED_PROGRAM_ID,
         systemProgram: web3.SystemProgram.programId,
         rent: web3.SYSVAR_RENT_PUBKEY,
-      },
-    })
+      })
+    const tx = await builder.transaction()
+    const txId = sendAndConfirm
+      ? await builder.rpc({ commitment: 'confirmed' })
+      : ''
 
     return {
+      tx,
       txId,
       srcAddress: srcPublicKey.toBase58(),
       dstAddress: dstPublicKey.toBase58(),

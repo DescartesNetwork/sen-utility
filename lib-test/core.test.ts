@@ -184,4 +184,8 @@ describe('@sentre/utility', function () {
       else console.info(er.message)
     }
   })
+
+  it('revoke', async () => {
+    await utility.revoke({ distributorAddress })
+  })
 })

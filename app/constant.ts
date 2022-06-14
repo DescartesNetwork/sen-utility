@@ -4,8 +4,7 @@ import { web3, BorshAccountsCoder, BN } from '@project-serum/anchor'
 import { IDL } from '../target/types/sen_utility'
 import { FeeOptions } from './types'
 
-export const DEFAULT_RPC_ENDPOINT =
-  'https://psytrbhymqlkfrhudd.dev.genesysgo.net:8899'
+export const DEFAULT_RPC_ENDPOINT = 'https://api.devnet.solana.com'
 export const DEFAULT_SEN_UTILITY_PROGRAM_ID =
   '7oyG4wSf2kz2CxTqKTf1uhpPqrw9a8Av1w5t8Uj5PfXb'
 export const DEFAULT_SEN_UTILITY_IDL = IDL
