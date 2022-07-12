@@ -30,9 +30,7 @@ jobs:
           solana --version
       - name: Install dependencies
         run: |
-          cargo install --git https://github.com/project-serum/anchor avm --locked --force
-          avm install latest
-          avm use latest
+          yarn global add @project-serum/anchor-cli
           yarn install
       - name: Build the program and library
         run: |
