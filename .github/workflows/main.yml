@@ -30,7 +30,7 @@ jobs:
           solana --version
       - name: Install dependencies
         run: |
-          yarn global add @project-serum/anchor-cli
+          yarn global add @project-serum/anchor-cli@0.24.2
           yarn install
       - name: Build the program and library
         run: |
