@@ -1,5 +1,13 @@
 # Sen Utility
 
+[![https://img.shields.io/npm/v/@sentre/utility](https://img.shields.io/npm/v/@sentre/utility)](https://www.npmjs.com/package/@sentre/utility)
+[![https://img.shields.io/npm/dw/@sentre/utility](https://img.shields.io/npm/dm/@sentre/utility)](https://www.npmjs.com/package/@sentre/utility)
+[![https://img.shields.io/bundlephobia/min/@sentre/utility](https://img.shields.io/bundlephobia/min/@sentre/utility)](https://www.npmjs.com/package/@sentre/utility)
+[![https://img.shields.io/github/issues-raw/descartesnetwork/sen-utility](https://img.shields.io/github/issues-raw/descartesnetwork/sen-utility)](https://github.com/DescartesNetwork/sen-utility)
+[![https://img.shields.io/github/license/descartesnetwork/sen-utility](https://img.shields.io/github/license/descartesnetwork/sen-utility)](https://github.com/DescartesNetwork/sen-utility)
+
+[![https://img.shields.io/twitter/follow/SentreProtocol?style=social](https://img.shields.io/twitter/follow/SentreProtocol?style=social)](https://twitter.com/SentreProtocol)
+
 🛠 Sentre Utility Program that helps to compact several common Solana procedures.
 
 ## Features
