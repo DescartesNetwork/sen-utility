@@ -19,8 +19,14 @@
 
 ## Installation
 
-```
+```bash
 npm i @sentre/utility
+```
+
+or
+
+```bash
+yarn add @sentre/utility
 ```
 
 ## Smartcontract
