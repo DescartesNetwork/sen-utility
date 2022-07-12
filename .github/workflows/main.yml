@@ -17,7 +17,7 @@ jobs:
       - name: Setup Node env
         uses: actions/setup-node@v2
         with:
-          node-version: '16.x'
+          node-version: '12.x'
           registry-url: 'https://registry.npmjs.org'
       - name: Welcome
         run: echo Start deploying Sen Utility
@@ -30,12 +30,12 @@ jobs:
           solana --version
       - name: Install dependencies
         run: |
-          yarn global add @project-serum/anchor-cli
-          yarn install
+          npm i -g @project-serum/anchor-cli
+          npm install
       - name: Build the program and library
         run: |
           anchor build
-          yarn build
+          npm run build
       - name: Publish the package
         run: npm publish --access=public
         env:
@@ -43,6 +43,6 @@ jobs:
       - name: Deploy docs to gh-pages branch
         run: |
           git remote set-url origin https://git:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git
-          yarn docs -- -u "github-actions-bot <support+actions@github.com>"
+          npm run docs -- -u "github-actions-bot <support+actions@github.com>"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
